@@ -7,6 +7,7 @@ import {
 	CompletionItemKind,
 	createConnection,
 	Diagnostic,
+	DiagnosticSeverity,
 	DidChangeConfigurationNotification,
 	DocumentDiagnosticReportKind,
 	InitializeParams,
@@ -18,6 +19,7 @@ import {
 	type DocumentDiagnosticReport
 } from 'vscode-languageserver/node';
 import tokens from './variables';
+import { categories, compareTokenForCategory, tokensByCategory } from './utils';
 
 const connection = createConnection(ProposedFeatures.all);
 
@@ -44,6 +46,8 @@ connection.onInitialize((params: InitializeParams) => {
 			},
 			hoverProvider: true,
 			colorProvider: true,
+			// TODO: Quick Fix
+			// codeActionProvider: true,
 			diagnosticProvider: {
 				interFileDependencies: false,
 				workspaceDiagnostics: false,
@@ -146,24 +150,41 @@ async function lintCssFile(
 	if (!settings.tokenSuggestions.enabled) {
 		return [];
 	}
-	// const text = textDocument.getText();
-	// const pattern = /\b[A-Z]{2,}\b/g;
-	// let m: RegExpExecArray | null;
+	const text = textDocument.getText();
+	const cssValueReg = /(?<=:\s)(?!var\()[^;]+/g;
+	let m: RegExpExecArray | null;
 
 	const diagnostics: Diagnostic[] = [];
-	// while ((m = pattern.exec(text))) {
-	// 	const diagnostic: Diagnostic = {
-	// 		severity: DiagnosticSeverity.Information,
-	// 		range: {
-	// 			start: textDocument.positionAt(m.index),
-	// 			end: textDocument.positionAt(m.index + m[0].length),
-	// 		},
-	// 		// use one of the suggestion in the message
-	// 		message: `${m[0]} is all uppercase.`,
-	// 		source: 'ex',
-	// 	};
-	// 	diagnostics.push(diagnostic);
-	// }
+	while ((m = cssValueReg.exec(text))) {
+		const property = textDocument.getText({
+			start: {
+				line: textDocument.positionAt(m.index).line,
+				character: 0
+			},
+			end: {
+				line: textDocument.positionAt(m.index).line,
+				character: 1e3,
+			}
+		});
+		const value = m[0];
+		for(const [category, { properties }] of Object.entries(categories)) {
+			for(const propertyRegex of properties) {
+				if (!propertyRegex.test(property) || !tokensByCategory.has(category)) {continue;}
+				let token;
+				if ((token = compareTokenForCategory(category as keyof typeof categories, value))) {
+					diagnostics.push({
+						severity: DiagnosticSeverity.Information,
+						range: {
+							start: textDocument.positionAt(m.index),
+							end: textDocument.positionAt(m.index + m[0].length),
+						},
+						message: `Consider using ${token} instead of ${value}`,
+						source: 'Venus Tokens',
+					});
+				}
+			}
+		}
+	}
 	return diagnostics;
 }
 
