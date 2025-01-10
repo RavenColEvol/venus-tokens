@@ -1,55 +1,69 @@
 import { formatHex8 } from 'culori';
 import tokens from './variables';
 
-const categories = {
+const NUMBER_REGEX = /\b\d+(\.\d+)?(px|rem)\b|\.\d+(px|rem)\b/g;
+const COLOR_REGEX = 
+			/#(?:[A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})\b|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)|hsla?\(\s*\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*(?:,\s*(?:0|1|0?\.\d+))?\s*\)/g;
+const categories: Record<
+	string,
+	{
+		regex: RegExp;
+		properties: RegExp[];
+		tokensRegex?: RegExp;
+	}
+> = {
 	shadow: {
 		regex: /^--shadow/,
-		properties: [/box-shadow/]
+		properties: [/box-shadow/],
 	},
 	color: {
 		regex: /^--color/,
-		properties: [/color|background-color|border-color|outline-color|text-shadow|box-shadow|border-top-color|border-right-color|border-bottom-color|border-left-color|column-rule-color|text-decoration-color|fill|stroke/]
+		properties: [
+			/color|background-color|border-color|outline-color|text-shadow|box-shadow|border-top-color|border-right-color|border-bottom-color|border-left-color|column-rule-color|text-decoration-color|fill|stroke/,
+		],
+		tokensRegex: COLOR_REGEX,
 		// check if color are same as token then suggest
 	},
 	lineHeight: {
 		regex: /^--line-height/,
-		properties: [/line-height/]
+		properties: [/line-height/],
 	},
 	mediaQuery: {
 		regex: /^--mq/,
-		properties: [/media/]
+		properties: [/media/],
 	},
 	opacity: {
 		regex: /^--opacity/,
-		properties: [/opacity/]
+		properties: [/opacity/],
 	},
 	radius: {
 		regex: /^--radii/,
-		properties: [/border-radius/]
+		properties: [/border-radius/],
 	},
 	fontSize: {
 		regex: /^--(size-font|font-base)/,
-		properties: [/font-size|font/]
-		// convert px to rem and check equality with tokens
+		properties: [/font-size|font/],
+		tokensRegex: NUMBER_REGEX
 	},
 	space: {
 		regex: /^--space/,
-		properties: [/padding|margin|gap|border|width|height|min-width|min-height|max-width|max-height|top|right|bottom|left|font-size|line-height|letter-spacing|border-width|border-radius|outline-width|box-shadow|text-indent|column-gap|column-width|grid-gap|grid-template-columns|grid-template-rows|grid-auto-columns|grid-auto-rows/],
-		// convert px to rem and check equality with tokens
+		properties: [
+			/padding|margin|gap|border|width|height|min-width|min-height|max-width|max-height|top|right|bottom|left|font-size|line-height|letter-spacing|border-width|border-radius|outline-width|box-shadow|text-indent|column-gap|column-width|grid-gap|grid-template-columns|grid-template-rows|grid-auto-columns|grid-auto-rows/,
+		],
+		tokensRegex: NUMBER_REGEX
 	},
 	fontWeight: {
 		regex: /^--font-weight/,
-		properties: [/font-weight/]
-		// convert bold semibold extra bold regular to tokens and check equality with tokens
+		properties: [/font-weight/],
 	},
 	fontFamily: {
 		regex: /^--font-family/,
-		properties: [/font-family|font/]
+		properties: [/font-family|font/],
 	},
 	zIndex: {
 		regex: /^--z-index/,
-		properties: [/z-index/]
-	}
+		properties: [/z-index/],
+	},
 } as const;
 
 // collect all tokens based on regex
@@ -65,9 +79,14 @@ Object.entries(tokens).forEach(([key, value]) => {
 	}
 });
 
-const compareTokenForCategory = (category: keyof typeof categories, value: string) => {
+const compareTokenForCategory = (
+	category: keyof typeof categories,
+	value: string
+) => {
 	const findToken = (value: string) => {
-		for (const [key, token] of Object.entries(tokensByCategory.get(category)!)) {
+		for (const [key, token] of Object.entries(
+			tokensByCategory.get(category)!
+		)) {
 			if (token === value) {
 				return key;
 			}
@@ -75,7 +94,9 @@ const compareTokenForCategory = (category: keyof typeof categories, value: strin
 		return null;
 	};
 	const findColor = (value: string) => {
-		for (const [key, token] of Object.entries(tokensByCategory.get(category)!)) {
+		for (const [key, token] of Object.entries(
+			tokensByCategory.get(category)!
+		)) {
 			if (formatHex8(token) === formatHex8(value)) {
 				return key;
 			}
@@ -105,18 +126,20 @@ const compareTokenForCategory = (category: keyof typeof categories, value: strin
 			return result;
 		}
 		const fontWeightMap: Record<string, string> = {
-			'normal': '400',
-			'bold': '700',
-			'lighter': '300',
-			'bolder': '800',
+			normal: '400',
+			bold: '700',
+			lighter: '300',
+			bolder: '800',
 		};
-		for(const [key, token] of Object.entries(tokensByCategory.get(category)!)) {
+		for (const [key, token] of Object.entries(
+			tokensByCategory.get(category)!
+		)) {
 			if (token === fontWeightMap[value]) {
 				return key;
 			}
 		}
 	};
-	switch(category) {
+	switch (category) {
 		case 'color':
 			return findColor(value);
 		case 'fontSize':
@@ -129,8 +152,35 @@ const compareTokenForCategory = (category: keyof typeof categories, value: strin
 	}
 };
 
+const getAllTokensForValue = (
+	value: string,
+	baseRes: RegExpExecArray,
+	tokensRegex?: RegExp,
+) => {
+	if (!tokensRegex) {
+		return [
+			{
+				value,
+				startIdx: baseRes.index,
+				endIdx: baseRes.index + baseRes[0].length,
+			},
+		];
+	}
+	const values = [];
+	let m;
+	while ((m = tokensRegex.exec(value))) {
+		values.push({
+			value: m[0],
+			startIdx: baseRes.index + m.index,
+			endIdx: baseRes.index + m.index + m[0].length,
+		});
+	}
+	return values;
+};
+
 export {
 	tokensByCategory,
 	categories,
 	compareTokenForCategory,
+	getAllTokensForValue,
 };

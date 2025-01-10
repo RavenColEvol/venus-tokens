@@ -23,7 +23,7 @@ import {
 	TextEdit,
 	type DocumentDiagnosticReport
 } from 'vscode-languageserver/node';
-import { categories, compareTokenForCategory, tokensByCategory } from './utils';
+import { categories, compareTokenForCategory, getAllTokensForValue, tokensByCategory } from './utils';
 import tokens from './variables';
 
 const connection = createConnection(ProposedFeatures.all);
@@ -177,25 +177,28 @@ async function lintCssFile(
 			}
 		});
 		const value = m[0];
-		for(const [category, { properties }] of Object.entries(categories)) {
+		for(const [category, { properties, tokensRegex }] of Object.entries(categories)) {
 			for(const propertyRegex of properties) {
 				if (!propertyRegex.test(property) || !tokensByCategory.has(category)) {continue;}
+				const values = getAllTokensForValue(value, m, tokensRegex);
 				let token;
-				if ((token = compareTokenForCategory(category as keyof typeof categories, value))) {
-					const range = {
-						start: textDocument.positionAt(m.index),
-						end: textDocument.positionAt(m.index + m[0].length),
-					};
-					diagnostics.push({
-						severity: DiagnosticSeverity.Information,
-						range: range,
-						message: `Consider using ${token} instead of ${value}`,
-						source: 'Venus Tokens',
-						data: {
-							token,
-							range,
-						}
-					});
+				for(const { value, startIdx, endIdx } of values) {
+					if ((token = compareTokenForCategory(category as keyof typeof categories, value))) {
+						const range = {
+							start: textDocument.positionAt(startIdx),
+							end: textDocument.positionAt(endIdx),
+						};
+						diagnostics.push({
+							severity: DiagnosticSeverity.Information,
+							range: range,
+							message: `Consider using ${token} instead of ${value}`,
+							source: 'Venus Tokens',
+							data: {
+								token,
+								range,
+							}
+						});
+					}
 				}
 			}
 		}
