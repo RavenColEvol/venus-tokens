@@ -21,17 +21,27 @@ import {
 	TextDocuments,
 	TextDocumentSyncKind,
 	TextEdit,
-	type DocumentDiagnosticReport
+	type DocumentDiagnosticReport,
 } from 'vscode-languageserver/node';
-import { categories, compareTokenForCategory, getAllTokensForValue, tokensByCategory } from './utils';
+import {
+	categories,
+	compareTokenForCategory,
+	getAllTokensForValue,
+	tokensByCategory,
+} from './utils';
 import tokens from './variables';
 
 const connection = createConnection(ProposedFeatures.all);
 
 const documents = new TextDocuments(TextDocument);
-
+const diagnosticWeakMap = new WeakMap<TextDocument, Diagnostic[]>();
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
+
+export const CommandIds = {
+	ReplaceToken: 'venusTokens.replaceToken',
+	ReplaceAllTokens: 'venusTokens.replaceAllTokens',
+};
 
 connection.onInitialize((params: InitializeParams) => {
 	const capabilities = params.capabilities;
@@ -52,14 +62,16 @@ connection.onInitialize((params: InitializeParams) => {
 			hoverProvider: true,
 			colorProvider: true,
 			// TODO: Quick Fix
-			codeActionProvider: true,
+			codeActionProvider: {
+				codeActionKinds: [CodeActionKind.QuickFix, CodeActionKind.Source],
+			},
 			diagnosticProvider: {
 				interFileDependencies: false,
 				workspaceDiagnostics: false,
 			},
 			executeCommandProvider: {
-				commands: ['venusTokens.replaceToken']
-			}
+				commands: [CommandIds.ReplaceToken],
+			},
 		},
 	};
 	if (hasWorkspaceFolderCapability) {
@@ -127,7 +139,11 @@ function getDocumentSettings(resource: string): Thenable<VenusTokensSettings> {
 }
 
 documents.onDidClose((e) => {
+	const document = documents.get(e.document.uri);
 	documentSettings.delete(e.document.uri);
+	if (document) {
+		diagnosticWeakMap.delete(document);
+	}
 });
 
 connection.languages.diagnostics.on(async (params) => {
@@ -151,9 +167,7 @@ documents.onDidChangeContent((change) => {
 });
 
 // Feat: Linter Feature
-async function lintCssFile(
-	textDocument: TextDocument
-): Promise<Diagnostic[]> {
+async function lintCssFile(textDocument: TextDocument): Promise<Diagnostic[]> {
 	const settings = await getDocumentSettings(textDocument.uri);
 	if (!settings.tokenSuggestions.enabled) {
 		return [];
@@ -169,21 +183,30 @@ async function lintCssFile(
 		const property = textDocument.getText({
 			start: {
 				line: textDocument.positionAt(m.index).line,
-				character: 0
+				character: 0,
 			},
 			end: {
 				line: textDocument.positionAt(m.index).line,
 				character: 1e3,
-			}
+			},
 		});
 		const value = m[0];
-		for(const [category, { properties, tokensRegex }] of Object.entries(categories)) {
-			for(const propertyRegex of properties) {
-				if (!propertyRegex.test(property) || !tokensByCategory.has(category)) {continue;}
+		for (const [category, { properties, tokensRegex }] of Object.entries(
+			categories
+		)) {
+			for (const propertyRegex of properties) {
+				if (!propertyRegex.test(property) || !tokensByCategory.has(category)) {
+					continue;
+				}
 				const values = getAllTokensForValue(value, m, tokensRegex);
 				let token;
-				for(const { value, startIdx, endIdx } of values) {
-					if ((token = compareTokenForCategory(category as keyof typeof categories, value))) {
+				for (const { value, startIdx, endIdx } of values) {
+					if (
+						(token = compareTokenForCategory(
+							category as keyof typeof categories,
+							value
+						))
+					) {
 						const range = {
 							start: textDocument.positionAt(startIdx),
 							end: textDocument.positionAt(endIdx),
@@ -196,13 +219,14 @@ async function lintCssFile(
 							data: {
 								token,
 								range,
-							}
+							},
 						});
 					}
 				}
 			}
 		}
 	}
+	diagnosticWeakMap.set(textDocument, diagnostics);
 	return diagnostics;
 }
 
@@ -216,33 +240,35 @@ connection.onHover((textDocumentPosition: TextDocumentPositionParams) => {
 	const document = documents.get(textDocumentPosition.textDocument.uri);
 	if (!document) {
 		return {
-			contents: []
+			contents: [],
 		};
 	}
 	const position = textDocumentPosition.position;
 	const currLine = document.getText({
 		start: {
 			line: position.line,
-			character: 0
+			character: 0,
 		},
 		end: {
 			line: position.line,
 			character: 1e3,
-		}
+		},
 	});
-	const token = Object.keys(tokens).find(variable => {
+	const token = Object.keys(tokens).find((variable) => {
 		const index = currLine.indexOf(variable);
 		return index > -1 && index <= position.character;
 	});
 	if (!token) {
 		return {
-			contents: []
+			contents: [],
 		};
 	}
 	return {
 		contents: [
-			`**Venus Token** <br /> Value: **${tokens[token as keyof typeof tokens]}**`
-		]
+			`**Venus Token** <br /> Value: **${
+				tokens[token as keyof typeof tokens]
+			}**`,
+		],
 	};
 });
 
@@ -273,19 +299,27 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
 // Feat: Color Preview Feature
 connection.onDocumentColor((params) => {
 	const document = documents.get(params.textDocument.uri);
-  if (!document) { return []; }
+	if (!document) {
+		return [];
+	}
 	const text = document.getText();
 	const variableRegex = /var\((?<varName>--[a-z-0-9]+)/g;
 	let match;
 	const venusColors: ColorInformation[] = [];
-	while((match = variableRegex.exec(text))) {
+	while ((match = variableRegex.exec(text))) {
 		const variable = match.groups?.varName;
 		const isColor = variable?.includes('color');
-		if (!variable) { continue; }
-		if (!isColor || !(variable in tokens)) { continue; }
+		if (!variable) {
+			continue;
+		}
+		if (!isColor || !(variable in tokens)) {
+			continue;
+		}
 		const colorValue = tokens[variable as keyof typeof tokens];
 		const rgbaColor = formatRgb(colorValue);
-		if (!rgbaColor) { continue; }
+		if (!rgbaColor) {
+			continue;
+		}
 		const parsedColor = parse(rgbaColor) as Rgb;
 		const color: Color = {
 			red: parsedColor.r,
@@ -314,32 +348,76 @@ connection.onCodeAction((params) => {
 	if (textDocument === undefined) {
 		return undefined;
 	}
-	const data = params.context.diagnostics.find(v => v.source === 'Venus Tokens')?.data;
+	const data = params.context.diagnostics.find(
+		(v) => v.source === 'Venus Tokens'
+	)?.data;
 	if (!data) {
 		return undefined;
 	}
-	const title = 'Replace with Venus Token';
-	return [CodeAction.create(title, Command.create(title, 'venusTokens.replaceToken', textDocument.uri, data), CodeActionKind.QuickFix)];
+	const quickFix = 'Replace with Venus Token';
+	return [
+		CodeAction.create(
+			quickFix,
+			Command.create(quickFix, CommandIds.ReplaceToken, textDocument.uri, data),
+			CodeActionKind.QuickFix
+		),
+	];
 });
 
 connection.onExecuteCommand(async (params) => {
-	if (params.command !== 'venusTokens.replaceToken' || params.arguments === undefined) {
+	if (params.arguments === undefined) {
 		return;
 	}
 
-	const textDocument = documents.get(params.arguments[0]);
-	const data = params.arguments[1];
-	if (textDocument === undefined || !data) {
+	if (params.command === CommandIds.ReplaceAllTokens) {
+		const { uri } = params.arguments[0];
+		const textDocument = documents.get(uri);
+		if (!textDocument) {
+			return;
+		}
+		const diagnostics = diagnosticWeakMap.get(textDocument);
+		if (!diagnostics) {
+			return;
+		}
+		const edits: TextEdit[] = [];
+		diagnostics.forEach((diagnostic) => {
+			const { range, data } = diagnostic;
+			const { token } = data;
+			edits.push(TextEdit.replace(range, `var(${token})`));
+		});
+		connection.workspace
+			.applyEdit({
+				documentChanges: [
+					TextDocumentEdit.create(
+						{ uri: textDocument.uri, version: textDocument.version },
+						edits
+					),
+				],
+			})
+			.then(({ applied }) => {
+				if (applied) {
+					connection.console.error(`Failed to apply ${params.command}`);
+				}
+			});
 		return;
 	}
-	const { range, token } = data;
-	connection.workspace.applyEdit({
-		documentChanges: [
-			TextDocumentEdit.create({ uri: textDocument.uri, version: textDocument.version }, [
-				TextEdit.replace(range, `var(${token})`)
-			])
-		]
-	});
+
+	if (params.command === CommandIds.ReplaceToken) {
+		const textDocument = documents.get(params.arguments[0]);
+		const data = params.arguments[1];
+		if (textDocument === undefined || !data) {
+			return;
+		}
+		const { range, token } = data;
+		connection.workspace.applyEdit({
+			documentChanges: [
+				TextDocumentEdit.create(
+					{ uri: textDocument.uri, version: textDocument.version },
+					[TextEdit.replace(range, `var(${token})`)]
+				),
+			],
+		});
+	}
 });
 
 documents.listen(connection);

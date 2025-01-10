@@ -19,7 +19,7 @@ const categories: Record<
 	color: {
 		regex: /^--color/,
 		properties: [
-			/color|background-color|border-color|outline-color|text-shadow|box-shadow|border-top-color|border-right-color|border-bottom-color|border-left-color|column-rule-color|text-decoration-color|fill|stroke/,
+			/color|background|background-color|border|border-color|outline-color|text-shadow|box-shadow|border-top-color|border-right-color|border-bottom-color|border-left-color|column-rule-color|text-decoration-color|fill|stroke/,
 		],
 		tokensRegex: COLOR_REGEX,
 		// check if color are same as token then suggest
@@ -48,7 +48,7 @@ const categories: Record<
 	space: {
 		regex: /^--space/,
 		properties: [
-			/padding|margin|gap|border|width|height|min-width|min-height|max-width|max-height|top|right|bottom|left|font-size|line-height|letter-spacing|border-width|border-radius|outline-width|box-shadow|text-indent|column-gap|column-width|grid-gap|grid-template-columns|grid-template-rows|grid-auto-columns|grid-auto-rows/,
+			/padding|margin|gap|top|right|bottom|left|letter-spacing|text-indent|column-gap|column-width|grid-gap|grid-template-columns|grid-template-rows|grid-auto-columns|grid-auto-rows/,
 		],
 		tokensRegex: NUMBER_REGEX
 	},
@@ -92,6 +92,10 @@ const compareTokenForCategory = (
 			}
 		}
 		return null;
+	};
+	const findNumber = (value: string) => {
+		const number = parseFloat(value);
+		return findToken(number.toString());
 	};
 	const findColor = (value: string) => {
 		for (const [key, token] of Object.entries(
@@ -145,6 +149,8 @@ const compareTokenForCategory = (
 		case 'fontSize':
 		case 'space':
 			return findPixelSize(value);
+		case 'opacity':
+			return findNumber(value);
 		case 'fontWeight':
 			return findFontWeight(value);
 		default:

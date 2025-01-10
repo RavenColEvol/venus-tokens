@@ -1,11 +1,14 @@
 import * as path from 'path';
-import { workspace, ExtensionContext } from 'vscode';
+import { workspace, ExtensionContext, commands, window } from 'vscode';
 
 import {
+	ExecuteCommandParams,
+	ExecuteCommandRequest,
 	LanguageClient,
 	LanguageClientOptions,
 	ServerOptions,
 	TransportKind,
+	VersionedTextDocumentIdentifier,
 } from 'vscode-languageclient/node';
 
 let client: LanguageClient;
@@ -40,7 +43,26 @@ export function activate(context: ExtensionContext) {
 		clientOptions
 	);
 
+	const disposable = commands.registerCommand('venusTokens.replaceAllTokens', async () => {
+		const textEditor = window.activeTextEditor;
+		if (!textEditor) {
+			return;
+		}
+		const textDocument: VersionedTextDocumentIdentifier = {
+			uri: textEditor.document.uri.toString(),
+			version: textEditor.document.version,
+		};
+		const params: ExecuteCommandParams = {
+			command: 'venusTokens.replaceAllTokens',
+			arguments: [textDocument],
+		};
+		client.sendRequest(ExecuteCommandRequest.type, params).catch(() => {
+			void window.showErrorMessage('Failed to replace all tokens');
+		});
+	});
+	context.subscriptions.push(disposable);
 	client.start();
+	// client.start();
 }
 
 export function deactivate(): Thenable<void> | undefined {
