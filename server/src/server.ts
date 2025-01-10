@@ -160,6 +160,8 @@ async function lintCssFile(
 	}
 	const text = textDocument.getText();
 	const cssValueReg = /(?<=:\s)(?!var\()[^;]+/g;
+	//TODO: Handle Media Query seperately
+	cssValueReg.lastIndex = 0;
 	let m: RegExpExecArray | null;
 
 	const diagnostics: Diagnostic[] = [];

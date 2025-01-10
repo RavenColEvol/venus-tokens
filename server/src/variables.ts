@@ -146,9 +146,9 @@ const tokens = {
 	'--line-height-reset': '1',
 	'--mq-large': ` only screen and (min-width":" 64.0625rem)`,
 	/* Large form factor":" devices larger than tablet */
-	'--mq-medium': ` only screen and (min-width":" 48rem)`,
+	'--mq-medium': ` only screen and (min-width: 48rem)`,
 	/* Medium form factor":" devices larger than phone */
-	'--mq-small': ` only screen and (max-width":" 47.9375rem)`,
+	'--mq-small': ` only screen and (max-width: 47.9375rem)`,
 	/* Small form factor":" devices smaller than tablet */
 	'--opacity-0': '0',
 	'--opacity-1': '1',

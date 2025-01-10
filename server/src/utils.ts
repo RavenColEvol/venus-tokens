@@ -84,7 +84,8 @@ const compareTokenForCategory = (category: keyof typeof categories, value: strin
 	};
 	const findPixelSize = (value: string) => {
 		if (/rem/.test(value)) {
-			return findToken(value);
+			const rem = parseFloat(value);
+			return findToken(`${rem}rem`);
 		}
 		if (!/px/.test(value)) {
 			return null;
