@@ -1,16 +1,17 @@
 {
-	"name": "lsp-sample-server",
-	"description": "Example implementation of a language server in node.",
+	"name": "venus-design-tokens-server",
+	"description": "server for venus-design-tokens",
 	"version": "1.0.0",
-	"author": "Microsoft Corporation",
+	"author": "Ravi Lamkoti",
 	"license": "MIT",
 	"engines": {
 		"node": "*"
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/Microsoft/vscode-extension-samples"
+		"url": "https://github.com/RavenColEvol/venus-tokens"
 	},
+	"publisher": "Ravi Lamkoti",
 	"dependencies": {
 		"culori": "^4.0.1",
 		"vscode-languageserver": "^9.0.1",

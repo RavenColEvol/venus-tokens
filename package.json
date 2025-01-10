@@ -1,17 +1,21 @@
 {
-	"name": "lsp-sample",
-	"description": "A language server example",
-	"author": "Microsoft Corporation",
+	"name": "venus-design-tokens",
+	"description": "Venus Design Tokens for VS Code",
+	"displayName": "Venus Design Tokens for VS Code",
+	"author": "Ravi Lamkoti",
 	"license": "MIT",
 	"version": "1.0.0",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/Microsoft/vscode-extension-samples"
+		"url": "https://github.com/RavenColEvol/venus-tokens"
 	},
-	"publisher": "vscode-samples",
-	"categories": [],
+	"publisher": "Ravi Lamkoti",
+	"categories": [
+		"Other"
+	],
 	"keywords": [
-		"multi-root ready"
+		"Venus Components",
+		"Design Tokens"
 	],
 	"engines": {
 		"vscode": "^1.75.0"
@@ -47,6 +51,7 @@
 			}
 		}
 	},
+	"icon": "docs/venus-design-tokens-logo.png",
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -b",
