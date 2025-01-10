@@ -1,24 +1,23 @@
+import { formatRgb, parse, Rgb } from 'culori';
+import { TextDocument } from 'vscode-languageserver-textdocument';
 import {
-	createConnection,
-	TextDocuments,
-	Diagnostic,
-	DiagnosticSeverity,
-	ProposedFeatures,
-	InitializeParams,
-	DidChangeConfigurationNotification,
+	Color,
+	ColorInformation,
 	CompletionItem,
 	CompletionItemKind,
-	TextDocumentPositionParams,
-	TextDocumentSyncKind,
-	InitializeResult,
+	createConnection,
+	Diagnostic,
+	DidChangeConfigurationNotification,
 	DocumentDiagnosticReportKind,
-	type DocumentDiagnosticReport,
-	ColorInformation,
-	Color,
+	InitializeParams,
+	InitializeResult,
+	ProposedFeatures,
+	TextDocumentPositionParams,
+	TextDocuments,
+	TextDocumentSyncKind,
+	type DocumentDiagnosticReport
 } from 'vscode-languageserver/node';
 import tokens from './variables';
-import { TextDocument } from 'vscode-languageserver-textdocument';
-import { formatRgb, parse, Rgb } from 'culori';
 
 const connection = createConnection(ProposedFeatures.all);
 
@@ -172,18 +171,39 @@ connection.onDidChangeWatchedFiles((_change) => {
 	connection.console.log('We received a file change event');
 });
 
-// TODO: Hover Preview Feature
+// Feat: Hover Preview Feature
 connection.onHover((textDocumentPosition: TextDocumentPositionParams) => {
 	// Implement hover functionality here
 	const document = documents.get(textDocumentPosition.textDocument.uri);
-	if (!document) {return;}
+	if (!document) {
+		return {
+			contents: []
+		};
+	}
 	const position = textDocumentPosition.position;
-	console.log('position', position);
-	return {
-		contents: {
-			kind: 'markdown',
-			value: 'Hover content',
+	const currLine = document.getText({
+		start: {
+			line: position.line,
+			character: 0
 		},
+		end: {
+			line: position.line,
+			character: 1e3,
+		}
+	});
+	const token = Object.keys(tokens).find(variable => {
+		const index = currLine.indexOf(variable);
+		return index > -1 && index <= position.character;
+	});
+	if (!token) {
+		return {
+			contents: []
+		};
+	}
+	return {
+		contents: [
+			`**Venus Token** <br /> Value: **${tokens[token as keyof typeof tokens]}**`
+		]
 	};
 });
 
@@ -246,7 +266,6 @@ connection.onDocumentColor((params) => {
 });
 
 connection.onColorPresentation((_params) => {
-	// No need for now since we are not allowing user to change the color
 	return [];
 });
 
