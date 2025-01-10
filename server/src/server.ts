@@ -1,8 +1,11 @@
 import { formatRgb, parse, Rgb } from 'culori';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import {
+	CodeAction,
+	CodeActionKind,
 	Color,
 	ColorInformation,
+	Command,
 	CompletionItem,
 	CompletionItemKind,
 	createConnection,
@@ -13,13 +16,15 @@ import {
 	InitializeParams,
 	InitializeResult,
 	ProposedFeatures,
+	TextDocumentEdit,
 	TextDocumentPositionParams,
 	TextDocuments,
 	TextDocumentSyncKind,
+	TextEdit,
 	type DocumentDiagnosticReport
 } from 'vscode-languageserver/node';
-import tokens from './variables';
 import { categories, compareTokenForCategory, tokensByCategory } from './utils';
+import tokens from './variables';
 
 const connection = createConnection(ProposedFeatures.all);
 
@@ -47,11 +52,14 @@ connection.onInitialize((params: InitializeParams) => {
 			hoverProvider: true,
 			colorProvider: true,
 			// TODO: Quick Fix
-			// codeActionProvider: true,
+			codeActionProvider: true,
 			diagnosticProvider: {
 				interFileDependencies: false,
 				workspaceDiagnostics: false,
 			},
+			executeCommandProvider: {
+				commands: ['venusTokens.replaceToken']
+			}
 		},
 	};
 	if (hasWorkspaceFolderCapability) {
@@ -142,7 +150,7 @@ documents.onDidChangeContent((change) => {
 	lintCssFile(change.document);
 });
 
-// TODO: Linter Feature
+// Feat: Linter Feature
 async function lintCssFile(
 	textDocument: TextDocument
 ): Promise<Diagnostic[]> {
@@ -172,14 +180,19 @@ async function lintCssFile(
 				if (!propertyRegex.test(property) || !tokensByCategory.has(category)) {continue;}
 				let token;
 				if ((token = compareTokenForCategory(category as keyof typeof categories, value))) {
+					const range = {
+						start: textDocument.positionAt(m.index),
+						end: textDocument.positionAt(m.index + m[0].length),
+					};
 					diagnostics.push({
 						severity: DiagnosticSeverity.Information,
-						range: {
-							start: textDocument.positionAt(m.index),
-							end: textDocument.positionAt(m.index + m[0].length),
-						},
+						range: range,
 						message: `Consider using ${token} instead of ${value}`,
 						source: 'Venus Tokens',
+						data: {
+							token,
+							range,
+						}
 					});
 				}
 			}
@@ -288,6 +301,40 @@ connection.onDocumentColor((params) => {
 
 connection.onColorPresentation((_params) => {
 	return [];
+});
+
+// Feat: Quick Fix
+connection.onCodeAction((params) => {
+	const textDocument = documents.get(params.textDocument.uri);
+	if (textDocument === undefined) {
+		return undefined;
+	}
+	const data = params.context.diagnostics.find(v => v.source === 'Venus Tokens')?.data;
+	if (!data) {
+		return undefined;
+	}
+	const title = 'Replace with Venus Token';
+	return [CodeAction.create(title, Command.create(title, 'venusTokens.replaceToken', textDocument.uri, data), CodeActionKind.QuickFix)];
+});
+
+connection.onExecuteCommand(async (params) => {
+	if (params.command !== 'venusTokens.replaceToken' || params.arguments === undefined) {
+		return;
+	}
+
+	const textDocument = documents.get(params.arguments[0]);
+	const data = params.arguments[1];
+	if (textDocument === undefined || !data) {
+		return;
+	}
+	const { range, token } = data;
+	connection.workspace.applyEdit({
+		documentChanges: [
+			TextDocumentEdit.create({ uri: textDocument.uri, version: textDocument.version }, [
+				TextEdit.replace(range, `var(${token})`)
+			])
+		]
+	});
 });
 
 documents.listen(connection);
