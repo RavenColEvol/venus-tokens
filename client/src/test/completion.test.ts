@@ -1,21 +1,18 @@
-/* --------------------------------------------------------------------------------------------
- * Copyright (c) Microsoft Corporation. All rights reserved.
- * Licensed under the MIT License. See License.txt in the project root for license information.
- * ------------------------------------------------------------------------------------------ */
-
 import * as vscode from 'vscode';
 import * as assert from 'assert';
 import { getDocUri, activate } from './helper';
 
 suite('Should do completion', () => {
-	const docUri = getDocUri('completion.txt');
+	const docUri = getDocUri('completion.css');
 
-	test('Completes JS/TS in txt file', async () => {
+	test('Completes CSS Variables of Venus Tokens', async () => {
+		// Checks if these tokens exists in autocompletions
+		const items = [
+			{ label: '--color-base-gray-25', kind: vscode.CompletionItemKind.Color },
+			{ label: '--opacity-2', kind: vscode.CompletionItemKind.Text}
+		];
 		await testCompletion(docUri, new vscode.Position(0, 0), {
-			items: [
-				{ label: 'JavaScript', kind: vscode.CompletionItemKind.Text },
-				{ label: 'TypeScript', kind: vscode.CompletionItemKind.Text }
-			]
+			items:items
 		});
 	});
 });
@@ -27,7 +24,6 @@ async function testCompletion(
 ) {
 	await activate(docUri);
 
-	// Executing the command `vscode.executeCompletionItemProvider` to simulate triggering completion
 	const actualCompletionList = (await vscode.commands.executeCommand(
 		'vscode.executeCompletionItemProvider',
 		docUri,
@@ -35,9 +31,10 @@ async function testCompletion(
 	)) as vscode.CompletionList;
 
 	assert.ok(actualCompletionList.items.length >= 2);
-	expectedCompletionList.items.forEach((expectedItem, i) => {
-		const actualItem = actualCompletionList.items[i];
-		assert.equal(actualItem.label, expectedItem.label);
-		assert.equal(actualItem.kind, expectedItem.kind);
+	expectedCompletionList.items.forEach((expectedItem) => {
+		const { label, kind } = expectedItem;
+		assert.ok(actualCompletionList.items.find(item => {
+			return item.label === label && item.kind === kind;
+		}));
 	});
 }

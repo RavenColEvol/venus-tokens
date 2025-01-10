@@ -61,7 +61,6 @@ connection.onInitialize((params: InitializeParams) => {
 			},
 			hoverProvider: true,
 			colorProvider: true,
-			// TODO: Quick Fix
 			codeActionProvider: {
 				codeActionKinds: [CodeActionKind.QuickFix, CodeActionKind.Source],
 			},
