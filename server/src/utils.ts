@@ -14,19 +14,19 @@ const categories: Record<
 > = {
 	shadow: {
 		regex: /^--shadow/,
-		properties: [/box-shadow/],
+		properties: [/(box-shadow):/],
 	},
 	color: {
 		regex: /^--color/,
 		properties: [
-			/color|background|background-color|border|border-color|outline-color|text-shadow|box-shadow|border-top-color|border-right-color|border-bottom-color|border-left-color|column-rule-color|text-decoration-color|fill|stroke/,
+			/(color|background|background-color|border|border-color|outline-color|text-shadow|box-shadow|border-top-color|border-right-color|border-bottom-color|border-left-color|column-rule-color|text-decoration-color|fill|stroke):/,
 		],
 		tokensRegex: COLOR_REGEX,
 		// check if color are same as token then suggest
 	},
 	lineHeight: {
 		regex: /^--line-height/,
-		properties: [/line-height/],
+		properties: [/(line-height):/],
 	},
 	mediaQuery: {
 		regex: /^--mq/,
@@ -34,35 +34,35 @@ const categories: Record<
 	},
 	opacity: {
 		regex: /^--opacity/,
-		properties: [/opacity/],
+		properties: [/(opacity):/],
 	},
 	radius: {
 		regex: /^--radii/,
-		properties: [/border-radius/],
+		properties: [/(border-radius):/],
 	},
 	fontSize: {
 		regex: /^--(size-font|font-base)/,
-		properties: [/font-size|font/],
+		properties: [/(font-size|font):/],
 		tokensRegex: NUMBER_REGEX
 	},
 	space: {
 		regex: /^--space/,
 		properties: [
-			/padding|margin|gap|top|right|bottom|left|letter-spacing|text-indent|column-gap|column-width|grid-gap|grid-template-columns|grid-template-rows|grid-auto-columns|grid-auto-rows/,
+			/(padding|margin|gap|top|right|bottom|left|letter-spacing|text-indent|column-gap|column-width|grid-gap|grid-template-columns|grid-template-rows|grid-auto-columns|grid-auto-rows):/,
 		],
 		tokensRegex: NUMBER_REGEX
 	},
 	fontWeight: {
 		regex: /^--font-weight/,
-		properties: [/font-weight/],
+		properties: [/(font-weight):/],
 	},
 	fontFamily: {
 		regex: /^--font-family/,
-		properties: [/font-family|font/],
+		properties: [/(font-family|font):/],
 	},
 	zIndex: {
 		regex: /^--z-index/,
-		properties: [/z-index/],
+		properties: [/(z-index):/],
 	},
 } as const;
 

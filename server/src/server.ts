@@ -272,16 +272,38 @@ connection.onHover((textDocumentPosition: TextDocumentPositionParams) => {
 });
 
 // FEATURE: AUTOCOMPLETE
-const completionItems = Object.entries(tokens).map(([key, value]) => {
-	const isColor = key.includes('color');
-	return {
-		label: key,
-		kind: isColor ? CompletionItemKind.Color : CompletionItemKind.Text,
-		data: value,
-	};
-});
 connection.onCompletion(
-	(_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
+	(textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
+		const { textDocument: { uri }, position } = textDocumentPosition;
+		const textDocument = documents.get(uri);
+		if (!textDocument) {
+			return [];
+		}
+		const line = textDocument.getText({
+			start: { line: position.line, character: 0 },
+			end: { line: position.line, character: 1e3 },
+		});
+		const cssValueReg = /(?<=:\s)[^;]+/g;
+		cssValueReg.lastIndex = 0;
+		if (!cssValueReg.test(line)) {
+			return [];
+		}
+		const completionItems: CompletionItem[] = [];
+		for(const [category, { properties }] of Object.entries(categories)) {
+			for(const propertyRegex of properties) {
+				if (!propertyRegex.test(line)) {
+					continue;
+				}
+				const values = Object.entries(tokensByCategory.get(category) || {});
+				for(const [key, value] of values) {
+					completionItems.push({
+						label: key,
+						kind: key.includes('color') ? CompletionItemKind.Color : CompletionItemKind.Text,
+						data: value,
+					});
+				}
+			}
+		}
 		return completionItems;
 	}
 );
