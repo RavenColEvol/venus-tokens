@@ -307,6 +307,7 @@ connection.onCompletion(
 						label: key,
 						kind: key.includes('color') ? CompletionItemKind.Color : CompletionItemKind.Text,
 						data: value,
+						insertText: `var(${key})`,
 					});
 				}
 			}
