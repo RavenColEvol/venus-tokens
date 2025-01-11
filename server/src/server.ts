@@ -161,7 +161,6 @@ connection.languages.diagnostics.on(async (params) => {
 });
 
 documents.onDidChangeContent((change) => {
-	// IMPORTANT
 	lintCssFile(change.document);
 });
 
@@ -173,7 +172,6 @@ async function lintCssFile(textDocument: TextDocument): Promise<Diagnostic[]> {
 	}
 	const text = textDocument.getText();
 	const cssValueReg = /(?<=:\s)(?!var\()[^;]+/g;
-	//TODO: Handle Media Query seperately
 	cssValueReg.lastIndex = 0;
 	let m: RegExpExecArray | null;
 
@@ -235,7 +233,6 @@ connection.onDidChangeWatchedFiles((_change) => {
 
 // Feat: Hover Preview Feature
 connection.onHover((textDocumentPosition: TextDocumentPositionParams) => {
-	// Implement hover functionality here
 	const document = documents.get(textDocumentPosition.textDocument.uri);
 	if (!document) {
 		return {
@@ -272,6 +269,11 @@ connection.onHover((textDocumentPosition: TextDocumentPositionParams) => {
 });
 
 // FEATURE: AUTOCOMPLETE
+// Optimization: Track if property is same provide last result or else recompute
+const currentProperty = {
+	property: '',
+	result: [] as CompletionItem[],
+};
 connection.onCompletion(
 	(textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
 		const { textDocument: { uri }, position } = textDocumentPosition;
@@ -283,10 +285,15 @@ connection.onCompletion(
 			start: { line: position.line, character: 0 },
 			end: { line: position.line, character: 1e3 },
 		});
-		const cssValueReg = /(?<=:\s)[^;]+/g;
-		cssValueReg.lastIndex = 0;
-		if (!cssValueReg.test(line)) {
+		const propertyNameRegex = /([^:]+):[^;]+/g;
+		propertyNameRegex.lastIndex = 0;
+		const property = propertyNameRegex.exec(line);
+		if (!property) {
 			return [];
+		}
+		// Cache if property is same
+		if (currentProperty.property === property[1]) {
+			return currentProperty.result;
 		}
 		const completionItems: CompletionItem[] = [];
 		for(const [category, { properties }] of Object.entries(categories)) {
@@ -304,6 +311,8 @@ connection.onCompletion(
 				}
 			}
 		}
+		currentProperty.property = property[1];
+		currentProperty.result = completionItems;
 		return completionItems;
 	}
 );
