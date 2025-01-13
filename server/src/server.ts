@@ -171,7 +171,7 @@ async function lintCssFile(textDocument: TextDocument): Promise<Diagnostic[]> {
 		return [];
 	}
 	const text = textDocument.getText();
-	const cssValueReg = /(?<=:\s)(?!var\()[^;]+/g;
+	const cssValueReg = /(?<=:\s)[^;]+/g;
 	cssValueReg.lastIndex = 0;
 	let m: RegExpExecArray | null;
 
