@@ -3,7 +3,7 @@ import tokens from './variables';
 
 const NUMBER_REGEX = /\b\d+(\.\d+)?(px|rem)\b|\.\d+(px|rem)\b/g;
 const COLOR_REGEX = 
-			/#(?:[A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})\b|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)|hsla?\(\s*\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*(?:,\s*(?:0|1|0?\.\d+))?\s*\)|\w+/g;
+			/#(?:[A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})\b|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)|hsla?\(\s*\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*(?:,\s*(?:0|1|0?\.\d+))?\s*\)|(?<!var\()(\b(?:[\w-]+)\b)(?!\))/g;
 const categories: Record<
 	string,
 	{
